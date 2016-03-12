@@ -1,0 +1,6 @@
+*.swp
+config.py
+*.pyc
+notes.txt
+venv
+dump
