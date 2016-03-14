@@ -18,9 +18,11 @@ payload['authToken'] = AUTH_TOKEN
 payload['leagueId'] = LEAGUE_ID
 
 
-def get_players(week):
+def api_get_players(week):
+    '''
+    '''
     col_name = 'week_{}'.format(week)
-    db.col_name.drop()
+    # db.col_name.drop()
     r = requests.get(base_url + '/players/weekstats?season=2015&week={}'
                      .format(week))
     players = r.json()['games']['102015']['players']
@@ -34,7 +36,7 @@ def get_players(week):
 
 def team_score_for_week(team=None, week=None):
     '''attempt to get total score for one team for one week
-    would be a good opportunity to do TDD
+    Takes a team league position and a week.
     '''
     team_score = 0
     db_roster = (db.matchups.find()[week - 1]['games']['102015']['leagues']
@@ -46,6 +48,7 @@ def team_score_for_week(team=None, week=None):
         for player in player_category:
             player_id = player['playerId']
             roster_slot = int(player['rosterSlotId'])
+            # 20 is the code for benched players.
             if roster_slot is not 20:
                 my_roster.append(int(player_id))
     for player_id_number in my_roster:
@@ -90,7 +93,36 @@ def stat_multiplier(stat_type, stat_value):
         return 0
 
 
+def draft_board():
+    # TODO: Sort by league_position explicitly
+    r = list(db.sunday_challenge_teams.find())
+    
+    for x in range(18):
+        draft_row = []
+        for i in range(8):
+            #draft_row.append(r[i]['drafted players'][x]['name'][:9])
+            total_score = 0
+            player_id = r[i]['drafted players'][x]['_id']
+            for week in range(1, 17):
+                total_score += player_score(player_id, week)
+            #total_score = r[i]['drafted players'][x]['_id']
+            draft_row.append('{:6.2f}'.format(total_score))
+        print '----------------------------------------------------------------------------------------'
+        print '{}{}'.format('draft pos {:2}  || '.format(x + 1), ' | '.join(draft_row))
+        '''
+            for team in r:
+                if team['draft position'] == i:
+                    for player in team['drafted players']:
+                        print team['owner'], player
+        '''
+
+    
+
+
+
 def create_multiplier_table():
+    '''
+    '''
     print db.stat_multipliers.drop()
     r = db.league_settings.find()
     multipliers = (r[0]['games']['102015']['leagues'][LEAGUE_ID]['settings']
@@ -129,12 +161,16 @@ def create_player_names_collection(player_id=None):
 
 
 def player_names(player_id=None):
+    '''
+    Takes an ID and returns a name.
+    '''
     result = db.player_name_and_id.find_one({'_id': str(player_id)})
     return result['name']
 
 
 def player_id_from_name(player_name=None):
     '''
+    Needs to be rewritten.
     '''
     results = db.player_name_and_id.find({'name': re.compile(player_name,
                                                              re.IGNORECASE)})
@@ -159,7 +195,7 @@ def player_id_from_name(player_name=None):
 
 def draft_order():
     '''
-    Hack
+    This needs to be broken up.
     '''
     previous_teams = list(db.sunday_challenge_teams.find())
     pprint.pprint(previous_teams)
@@ -199,24 +235,7 @@ def draft_order():
 
 def test_team_scores(team=None, week=None):
     '''
-    scores = {2:
-              {1: 143.34,
-               2: 114.24,
-               3: 142.68,
-               4: 146.54,
-               5: 121.52,
-               6: 123.02,
-               7: 115.90,
-               8: 136.80,
-               9: 150.36,
-               10: 126.68,
-               11: 106.96,
-               12: 147.12,
-               13: 156.84,
-               14: 156.86,
-               15: 164.90,
-               16: 139.44}
-              }
+    Returns a team's scores for each week of the season.
     '''
     scores = {}
     barf = db.sunday_challenge_teams.find()
@@ -248,19 +267,19 @@ def db_add_league_position():
     Add internal league id number to team docs.
     '''
     team_owners_ids = {
-            'kasey': 1,
-            'robert': 2,
-            'dan': 3,
-            'shawn': 4,
-            'nate': 5,
-            'mcclune': 6,
-            'nikzad': 7,
-            'tocci': 8}
+        'kasey': 1,
+        'robert': 2,
+        'dan': 3,
+        'shawn': 4,
+        'nate': 5,
+        'mcclune': 6,
+        'nikzad': 7,
+        'tocci': 8}
     for owner, league_position in team_owners_ids.iteritems():
         print db.sunday_challenge_teams.find_one_and_update({'owner': owner}, {'$set': {'league_position': league_position}})
 
 
-def main():
+def print_score_deltas():
     #print(db.collection_names())
     total_delta = 0
     nfl_scores = test_team_scores()
@@ -279,6 +298,9 @@ def main():
                   score_delta))
     print('Total season delta: {}'.format(total_delta))
 
+
+def main():
+    draft_board()
 
 if __name__ == '__main__':
     main()
