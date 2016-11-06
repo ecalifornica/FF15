@@ -69,9 +69,9 @@ def player_score(player_id=None, week=None):
         stats = (r[week - 1]['games']['102015']['players'][str(player_id)]
                   ['stats']['week']['2015'][str(week)])
         score = 0
-        for k, v in stats.iteritems():
-            if k != 'pts':
-                r = stat_multiplier(int(k), float(v))
+        for stat_type, stat_value in stats.iteritems():
+            if stat_type != 'pts':
+                r = stat_multiplier(int(stat_type), float(stat_value))
                 score += r
         #print round(score, 2)
         return round(score, 2)
@@ -94,9 +94,13 @@ def stat_multiplier(stat_type, stat_value):
 
 
 def draft_board():
+    # This is too slow
     # TODO: Sort by league_position explicitly
+    import csv
     r = list(db.sunday_challenge_teams.find())
-    
+    output = []
+    header = [team['owner'] for team in r]
+    output.append(header)
     for x in range(18):
         draft_row = []
         for i in range(8):
@@ -107,17 +111,12 @@ def draft_board():
                 total_score += player_score(player_id, week)
             #total_score = r[i]['drafted players'][x]['_id']
             draft_row.append('{:6.2f}'.format(total_score))
+        output.append(draft_row)
         print '----------------------------------------------------------------------------------------'
         print '{}{}'.format('draft pos {:2}  || '.format(x + 1), ' | '.join(draft_row))
-        '''
-            for team in r:
-                if team['draft position'] == i:
-                    for player in team['drafted players']:
-                        print team['owner'], player
-        '''
-
-    
-
+    with open('barf.csv', 'w') as handle:
+        a = csv.writer(handle, delimiter=',')
+        a.writerows(output)
 
 
 def create_multiplier_table():
